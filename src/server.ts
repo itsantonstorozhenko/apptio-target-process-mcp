@@ -82,13 +82,7 @@ export class TargetProcessServer {
       },
       {
         capabilities: {
-          tools: {
-            search_entities: true,
-            get_entity: true,
-            create_entity: true,
-            update_entity: true,
-            inspect_object: true
-          },
+          tools: {},
         },
       }
     );
@@ -154,15 +148,11 @@ export class TargetProcessServer {
           throw error;
         }
 
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `Target Process API error: ${error instanceof Error ? error.message : String(error)}`,
-            },
-          ],
-          isError: true,
-        };
+        // Wrap non-McpError exceptions in McpError
+        throw new McpError(
+          ErrorCode.InternalError,
+          `Target Process API error: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     });
   }
