@@ -613,12 +613,57 @@ export class TPService {
       const metadata = await this.fetchMetadata();
       const entityTypes: string[] = [];
       
-      if (metadata && metadata.Items) {
+      // Handle different response structures
+      if (metadata && metadata.Items && Array.isArray(metadata.Items)) {
+        // Standard response format with Items array
         console.error(`Metadata response received with ${metadata.Items.length} items`);
         for (const item of metadata.Items) {
           if (item.Name && !entityTypes.includes(item.Name)) {
             entityTypes.push(item.Name);
           }
+        }
+      } else if (metadata && typeof metadata === 'object') {
+        // Alternative response format - check for ResourceMetadataDescription
+        // The response might be an object with ResourceMetadataDescription properties
+        // or an array of ResourceMetadataDescription objects
+        const parseResourceMetadata = (obj: any, depth: number = 0): void => {
+          if (depth > 10) return; // Prevent infinite recursion
+          
+          if (obj && typeof obj === 'object') {
+            // Check if this is a ResourceMetadataDescription object
+            if (obj.Name && typeof obj.Name === 'string') {
+              if (!entityTypes.includes(obj.Name)) {
+                entityTypes.push(obj.Name);
+              }
+            }
+            
+            // Check if object keys are entity type names (common TP API pattern)
+            // Entity type names are typically PascalCase and match known patterns
+            const entityTypePattern = /^[A-Z][a-zA-Z0-9]+$/;
+            for (const key in obj) {
+              if (obj.hasOwnProperty(key) && key !== 'IndexUri' && key !== 'Uri') {
+                // If key looks like an entity type name, add it
+                if (entityTypePattern.test(key) && !entityTypes.includes(key)) {
+                  entityTypes.push(key);
+                }
+                
+                const value = obj[key];
+                if (Array.isArray(value)) {
+                  value.forEach(item => parseResourceMetadata(item, depth + 1));
+                } else if (value && typeof value === 'object') {
+                  parseResourceMetadata(value, depth + 1);
+                }
+              }
+            }
+          }
+        };
+        
+        parseResourceMetadata(metadata);
+        
+        if (entityTypes.length > 0) {
+          console.error(`Found ${entityTypes.length} entity types in metadata response`);
+        } else {
+          console.error('Metadata response structure not recognized. Full response:', JSON.stringify(metadata).substring(0, 500) + '...');
         }
       } else {
         console.error('Metadata response missing Items array:', JSON.stringify(metadata).substring(0, 200) + '...');
