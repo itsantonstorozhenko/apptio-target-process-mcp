@@ -185,7 +185,9 @@ export class TPService {
       }
     });
 
-    return `[${validIncludes.join(',')}]`;
+    // Targetprocess API expects comma-separated values in URL query parameters
+    // Not a JSON array format with brackets
+    return validIncludes.join(',');
   }
 
   constructor(config: TPServiceConfig) {
